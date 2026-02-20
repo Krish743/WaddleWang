@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PolicyAssist - Basic UI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📋 PolicyAssist</h1>
+            <p class="subtitle">Upload policy documents and ask questions</p>
+        </header>
+
+        <main>
+            <!-- Document Upload Section -->
+            <section class="card">
+                <h2>📄 Upload Document</h2>
+                <form id="uploadForm">
+                    <div class="file-input-wrapper">
+                        <input type="file" id="fileInput" accept=".pdf,.txt" required>
+                        <label for="fileInput" class="file-label">Choose PDF or TXT file</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Upload & Index</button>
+                </form>
+                <div id="uploadStatus" class="status"></div>
+            </section>
+
+            <!-- Question Section -->
+            <section class="card">
+                <h2>❓ Ask a Question</h2>
+                <form id="askForm">
+                    <textarea 
+                        id="questionInput" 
+                        placeholder="e.g., What is the leave policy?" 
+                        rows="3"
+                        required
+                    ></textarea>
+                    <button type="submit" class="btn btn-primary">Ask</button>
+                </form>
+                <div id="answerSection" class="answer-section">
+                    <div id="answer" class="answer"></div>
+                </div>
+            </section>
+
+            <!-- Summarize Section -->
+            <section class="card">
+                <h2>📝 Summarize Section</h2>
+                <form id="summarizeForm">
+                    <textarea 
+                        id="sectionInput" 
+                        placeholder="Paste a section of text to summarize..." 
+                        rows="5"
+                        required
+                    ></textarea>
+                    <button type="submit" class="btn btn-secondary">Summarize</button>
+                </form>
+                <div id="summarySection" class="answer-section">
+                    <div id="summary" class="answer"></div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Basic UI - Replace with proper frontend framework</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

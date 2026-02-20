@@ -28,14 +28,46 @@ pip install -r requirements.txt
 
 ### 3. Configure API keys
 
-Copy the example env file and set your LLM/embedding API key (OpenAI or any OpenAI-compatible provider):
+Copy the example env file and set your LLM/embedding API key:
 
 ```bash
 copy .env.example .env
-# Edit .env and set OPENAI_API_KEY=sk-...
+# Edit .env and set your API key
 ```
 
-Optional: `OPENAI_BASE_URL` for Azure or other endpoints; `LLM_MODEL`, `EMBEDDING_MODEL`, `CHUNK_SIZE`, `CHUNK_OVERLAP`.
+**For OpenAI:**
+```env
+API_KEY=sk-your-openai-key
+LLM_MODEL=gpt-4o-mini
+EMBEDDING_MODEL=text-embedding-3-small
+```
+
+**For Groq (fast inference with open-source models):**
+```env
+API_KEY=gsk-your-groq-key
+BASE_URL=https://api.groq.com/openai/v1
+LLM_MODEL=llama-3.1-70b-versatile
+
+# Embeddings - Use Hugging Face (recommended, free, no API key)
+EMBEDDING_PROVIDER=huggingface
+EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+```
+
+**Popular Groq models:** `llama-3.1-70b-versatile`, `mixtral-8x7b-32768`, `llama-3.1-8b-instant`
+
+**Popular Hugging Face embedding models:**
+- `sentence-transformers/all-MiniLM-L6-v2` (fast, 384 dimensions)
+- `sentence-transformers/all-mpnet-base-v2` (better quality, 768 dimensions)
+- `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (multilingual)
+
+**Using OpenAI embeddings (alternative):**
+```env
+EMBEDDING_PROVIDER=openai
+EMBEDDING_MODEL=text-embedding-3-small
+EMBEDDING_API_KEY=sk-your-openai-key
+```
+
+Optional: `CHUNK_SIZE`, `CHUNK_OVERLAP` for document chunking.
 
 ### 4. Run the API
 
@@ -45,6 +77,18 @@ uvicorn app.main:app --reload
 
 - API: **http://127.0.0.1:8000**
 - Docs: **http://127.0.0.1:8000/docs**
+- Basic UI: **http://127.0.0.1:8000/ui** (if frontend is mounted)
+
+## Frontend (Basic UI)
+
+A simple HTML/CSS/JS UI is included in `frontend/` for testing. It's designed to be easily replaced with React, Vue, Next.js, etc.
+
+**To use the basic UI:**
+- The backend automatically serves it at `/ui` if the `frontend/` folder exists
+- Or open `frontend/index.html` directly in a browser (may need CORS workaround)
+- Or serve with: `python -m http.server 8080` from the `frontend/` directory
+
+See `frontend/README.md` for details.
 
 ## API overview
 
@@ -70,6 +114,12 @@ backend/
   data/             # Created at runtime (uploads, chroma)
   requirements.txt
   .env.example
+
+frontend/           # Basic UI (replace with proper frontend)
+  index.html
+  styles.css
+  app.js
+  README.md
 ```
 
 ## Workflow (as per problem statement)
