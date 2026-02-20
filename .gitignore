@@ -1,0 +1,43 @@
+# Virtual environments (create venv inside backend/)
+.venv/
+venv/
+env/
+.env/
+backend/.venv/
+backend/venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Environment and secrets (copy .env.example to .env)
+.env
+.env.local
+*.env
+
+# Backend runtime data
+backend/data/
+data/
+
+# IDE and OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Optional: frontend build output (if you add a framework later)
+# frontend/node_modules/
+# frontend/dist/
+
+# Documentation files (DO NOT ignore - these should be tracked)
+# README.md, *.md documentation files, API_EXPLANATION.md, MODEL_VS_API.md, etc.
+# are intentionally tracked in git for project documentation
