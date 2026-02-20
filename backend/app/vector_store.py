@@ -22,10 +22,14 @@ def get_vector_store(collection_name: str = "policy_docs"):
 def add_documents_to_store(
     documents: list[Document],
     collection_name: str = "policy_docs",
-    ids: list[str] | None = None,
 ) -> None:
-    """Add chunked documents to the vector store."""
+    """Add chunked documents to the vector store.
+
+    Uses ``chunk_id`` from each document's metadata as the Chroma document id.
+    This ensures idempotent re-ingestion (same chunk won't be duplicated).
+    """
     store = get_vector_store(collection_name=collection_name)
+    ids = [doc.metadata.get("chunk_id", str(i)) for i, doc in enumerate(documents)]
     store.add_documents(documents, ids=ids)
 
 
@@ -34,6 +38,12 @@ def search_similar(
     k: int = 5,
     collection_name: str = "policy_docs",
 ) -> list[Document]:
-    """Retrieve top-k most relevant document chunks for a query."""
+    """Retrieve top-k most relevant document chunks for a query.
+
+    Returns ``Document`` objects whose ``.metadata`` contains:
+        - ``page``      : int
+        - ``source``    : str
+        - ``chunk_id``  : str
+    """
     store = get_vector_store(collection_name=collection_name)
     return store.similarity_search(query, k=k)

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -17,7 +17,7 @@ from app.rag import answer_question, summarize_section
 app = FastAPI(
     title="PolicyAssist",
     description="Intelligent Policy and FAQ Assistant – RAG over uploaded documents",
-    version="0.1.0",
+    version="0.2.0",
 )
 
 # CORS for frontend
@@ -29,13 +29,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount frontend static files (optional - comment out if serving frontend separately)
-try:
-    frontend_path = Path(__file__).resolve().parent.parent.parent / "frontend"
-    if frontend_path.exists():
-        app.mount("/ui", StaticFiles(directory=str(frontend_path), html=True), name="ui")
-except Exception:
-    pass  # Frontend not found, skip mounting
+# Serve frontend static files at root (/)
+_FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
+
+
+# ---------------------------------------------------------------------------
+# Routes defined BEFORE static mount so they take priority
+# ---------------------------------------------------------------------------
+
+@app.get("/")
+async def root():
+    """Serve the frontend UI at the root path."""
+    index = _FRONTEND_DIR / "index.html"
+    if index.exists():
+        return FileResponse(str(index))
+    return {"service": "PolicyAssist", "docs": "/docs", "health": "/health"}
+
+
 
 COLLECTION_NAME = "policy_docs"
 ALLOWED_EXTENSIONS = {".pdf", ".txt"}
@@ -50,16 +60,6 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-@app.get("/")
-async def root():
-    """Root route; points to API docs and health."""
-    return {
-        "service": "PolicyAssist",
-        "docs": "/docs",
-        "health": "/health",
-    }
-
-
 def get_uploads_dir() -> Path:
     s = get_settings()
     d = s.data_dir / "uploads"
@@ -67,12 +67,25 @@ def get_uploads_dir() -> Path:
     return d
 
 
+
+# ---------------------------------------------------------------------------
+# Request / Response models
+# ---------------------------------------------------------------------------
+
 class AskRequest(BaseModel):
     question: str
 
 
+class SourceCitation(BaseModel):
+    """A single citation grounded in a retrieved document chunk."""
+    page: int
+    excerpt: str
+
+
 class AskResponse(BaseModel):
+    """Structured answer with document-grounded citations."""
     answer: str
+    sources: list[SourceCitation]
 
 
 class SummarizeRequest(BaseModel):
@@ -88,6 +101,10 @@ class UploadResponse(BaseModel):
     file_id: str
     chunks_ingested: int
 
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
 
 @app.get("/upload")
 async def upload_get():
@@ -140,11 +157,23 @@ async def ask_get():
 
 @app.post("/ask", response_model=AskResponse)
 async def ask(req: AskRequest):
-    """Ask a question; answer is grounded in uploaded policy documents."""
+    """Ask a question; answer is strictly grounded in uploaded policy documents.
+
+    Response includes:
+    - **answer**: LLM-generated answer referencing the document.
+    - **sources**: list of ``{page, excerpt}`` citations built from retrieved chunks.
+
+    If the document does not contain the answer, ``sources`` will be ``[]`` and
+    ``answer`` will be ``"The document does not contain this information."``.
+    """
     if not req.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty.")
-    answer = answer_question(req.question, collection_name=COLLECTION_NAME)
-    return AskResponse(answer=answer)
+
+    result = answer_question(req.question, collection_name=COLLECTION_NAME)
+    return AskResponse(
+        answer=result["answer"],
+        sources=[SourceCitation(**s) for s in result["sources"]],
+    )
 
 
 @app.get("/summarize")
@@ -163,3 +192,9 @@ async def summarize(req: SummarizeRequest):
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "PolicyAssist"}
+
+
+# Mount frontend directory last so API routes always take priority.
+# CSS / JS requested by index.html are served from here.
+if _FRONTEND_DIR.exists():
+    app.mount("/", StaticFiles(directory=str(_FRONTEND_DIR)), name="frontend")

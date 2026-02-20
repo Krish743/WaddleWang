@@ -1,9 +1,19 @@
 """Application configuration from environment variables."""
-import os
 from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings
+
+# Resolve .env path relative to this file so it works regardless of CWD.
+# Search order: backend/.env  →  project-root/.env
+_THIS_DIR = Path(__file__).resolve().parent          # …/backend/app
+_BACKEND_DIR = _THIS_DIR.parent                       # …/backend
+_PROJECT_DIR = _BACKEND_DIR.parent                    # …/HackX
+_DOT_ENV = (
+    _BACKEND_DIR / ".env"
+    if (_BACKEND_DIR / ".env").exists()
+    else _PROJECT_DIR / ".env"
+)
 
 
 class Settings(BaseSettings):
@@ -21,7 +31,7 @@ class Settings(BaseSettings):
     embedding_base_url: str | None = None  # Only needed for OpenAI embeddings
 
     class Config:
-        env_file = ".env"
+        env_file = str(_DOT_ENV)
         env_file_encoding = "utf-8"
         extra = "ignore"
 
