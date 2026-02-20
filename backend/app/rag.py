@@ -1,7 +1,6 @@
 """RAG: retrieve relevant chunks and generate source-grounded answers/summaries."""
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough
 
 from app.llm import get_llm
 from app.vector_store import search_similar
@@ -49,13 +48,9 @@ def answer_question(
             "No relevant content was found in the uploaded documents. "
             "Please upload policy documents first or rephrase your question."
         )
-    chain = (
-        {"context": _format_docs(docs), "question": RunnablePassthrough()}
-        | QA_PROMPT
-        | get_llm()
-        | StrOutputParser()
-    )
-    return chain.invoke(question)
+    context = _format_docs(docs)
+    chain = QA_PROMPT | get_llm() | StrOutputParser()
+    return chain.invoke({"context": context, "question": question})
 
 
 def summarize_section(
@@ -64,10 +59,5 @@ def summarize_section(
     """Summarize a document section (e.g. leave policy, attendance rules)."""
     if not section_text.strip():
         return "No content to summarize."
-    chain = (
-        {"context": section_text}
-        | SUMMARIZE_PROMPT
-        | get_llm()
-        | StrOutputParser()
-    )
-    return chain.invoke(section_text)
+    chain = SUMMARIZE_PROMPT | get_llm() | StrOutputParser()
+    return chain.invoke({"context": section_text})

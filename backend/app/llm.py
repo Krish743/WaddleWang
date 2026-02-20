@@ -8,6 +8,6 @@ def get_llm():
     """Create LLM from settings."""
     s = get_settings()
     kwargs = {"model": s.llm_model, "temperature": 0}
-    if s.openai_base_url:
-        kwargs["openai_api_base"] = s.openai_base_url
-    return ChatOpenAI(api_key=s.openai_api_key, **kwargs)
+    if s.base_url:
+        kwargs["openai_api_base"] = s.base_url
+    return ChatOpenAI(api_key=s.api_key, **kwargs)

@@ -2,7 +2,10 @@
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app.config import get_settings
@@ -17,8 +20,44 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# CORS for frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, specify your frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Mount frontend static files (optional - comment out if serving frontend separately)
+try:
+    frontend_path = Path(__file__).resolve().parent.parent.parent / "frontend"
+    if frontend_path.exists():
+        app.mount("/ui", StaticFiles(directory=str(frontend_path), html=True), name="ui")
+except Exception:
+    pass  # Frontend not found, skip mounting
+
 COLLECTION_NAME = "policy_docs"
 ALLOWED_EXTENSIONS = {".pdf", ".txt"}
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Ensure all errors return JSON so the frontend can parse them."""
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc), "error": str(exc)},
+    )
+
+
+@app.get("/")
+async def root():
+    """Root route; points to API docs and health."""
+    return {
+        "service": "PolicyAssist",
+        "docs": "/docs",
+        "health": "/health",
+    }
 
 
 def get_uploads_dir() -> Path:
@@ -48,6 +87,12 @@ class UploadResponse(BaseModel):
     message: str
     file_id: str
     chunks_ingested: int
+
+
+@app.get("/upload")
+async def upload_get():
+    """Use POST /upload with a file. See /docs."""
+    return {"method": "POST", "description": "Upload a PDF or TXT file (multipart/form-data).", "docs": "/docs"}
 
 
 @app.post("/upload", response_model=UploadResponse)
@@ -87,6 +132,12 @@ async def upload_document(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Processing failed: {e}") from e
 
 
+@app.get("/ask")
+async def ask_get():
+    """Use POST /ask with JSON body {\"question\": \"...\"}. See /docs."""
+    return {"method": "POST", "description": "Send JSON: {\"question\": \"your question\"}.", "docs": "/docs"}
+
+
 @app.post("/ask", response_model=AskResponse)
 async def ask(req: AskRequest):
     """Ask a question; answer is grounded in uploaded policy documents."""
@@ -94,6 +145,12 @@ async def ask(req: AskRequest):
         raise HTTPException(status_code=400, detail="Question cannot be empty.")
     answer = answer_question(req.question, collection_name=COLLECTION_NAME)
     return AskResponse(answer=answer)
+
+
+@app.get("/summarize")
+async def summarize_get():
+    """Use POST /summarize with JSON body {\"section_text\": \"...\"}. See /docs."""
+    return {"method": "POST", "description": "Send JSON: {\"section_text\": \"text to summarize\"}.", "docs": "/docs"}
 
 
 @app.post("/summarize", response_model=SummarizeResponse)
