@@ -1,10 +1,13 @@
-# Virtual environments (create venv inside backend/)
+# Virtual environments (can be created anywhere - all common locations ignored)
 .venv/
 venv/
 env/
 .env/
 backend/.venv/
 backend/venv/
+# Also ignore venv at root level if created there
+HackX-venv/
+policyassist-venv/
 
 # Python
 __pycache__/

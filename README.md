@@ -46,17 +46,29 @@ cd backend
 
 ### Step 2: Create virtual environment
 
+**Option A: Create in backend/ (recommended)**
 ```bash
 python -m venv .venv
 ```
 
+**Option B: Create venv elsewhere**
+```bash
+# From backend/, create venv at root level
+python -m venv ../venv
+
+# Or create in custom location
+python -m venv C:/path/to/my-venv
+```
+
 **Activate venv:**
 
-- **Windows (PowerShell):** `.\\.venv\\Scripts\\Activate.ps1`
-- **Windows (cmd):** `.\\.venv\\Scripts\\activate.bat`
-- **macOS/Linux:** `source .venv/bin/activate`
+- **Windows (PowerShell):** `.\\.venv\\Scripts\\Activate.ps1` (or path to your venv)
+- **Windows (cmd):** `.\\.venv\\Scripts\\activate.bat` (or path to your venv)
+- **macOS/Linux:** `source .venv/bin/activate` (or path to your venv)
 
-You should see `(.venv)` in your prompt.
+You should see `(.venv)` or your venv name in your prompt.
+
+**Note:** Venv can be anywhere, but always run commands from `backend/` directory.
 
 ### Step 3: Install dependencies
 

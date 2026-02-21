@@ -4,14 +4,16 @@ Design principles:
   - LLM is ONLY allowed to use the provided context.
   - Citations are built server-side from retrieved chunk metadata — the LLM
     is never trusted to generate page numbers or excerpts.
+  - Confidence is computed from retrieval scores — not LLM output.
   - If the LLM cannot find an answer, it returns a fixed refusal string.
+  - Gap detection is automatic when a refusal is detected.
 """
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.documents import Document
 
 from app.llm import get_llm
-from app.vector_store import search_similar
+from app.vector_store import search_similar, search_similar_with_scores, search_tables
 
 # ---------------------------------------------------------------------------
 # Strict system prompt — LLM must answer ONLY from the supplied context
@@ -36,6 +38,32 @@ QA_PROMPT = ChatPromptTemplate.from_messages(
     ]
 )
 
+# ---------------------------------------------------------------------------
+# Scenario / Compliance Analyzer prompt
+# ---------------------------------------------------------------------------
+COMPLIANCE_SYSTEM_PROMPT = (
+    "You are PolicyAssist, an AI compliance advisor.\n\n"
+    "A user has described a workplace scenario. Your job is to:\n"
+    "1. Analyze the scenario against the policy excerpts provided below.\n"
+    "2. State the applicable policy rule(s) with their exact wording.\n"
+    "3. Explain the likely outcome or consequence for the employee.\n"
+    "4. Be specific — mention page numbers and exact clause text from the context.\n"
+    "5. If no relevant policy is found, respond with EXACTLY:\n"
+    '   "The document does not contain a policy for this scenario."\n'
+    "6. Do NOT fabricate rules or outcomes not present in the context.\n\n"
+    "POLICY CONTEXT:\n{context}"
+)
+
+COMPLIANCE_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        ("system", COMPLIANCE_SYSTEM_PROMPT),
+        ("human", "Scenario: {scenario}"),
+    ]
+)
+
+# ---------------------------------------------------------------------------
+# Section summarization prompt (used by sections.py too, kept here for import convenience)
+# ---------------------------------------------------------------------------
 SUMMARIZE_PROMPT = ChatPromptTemplate.from_messages(
     [
         (
@@ -50,19 +78,21 @@ SUMMARIZE_PROMPT = ChatPromptTemplate.from_messages(
 
 # Refusal sentinel — returned by the LLM when info is not found
 REFUSAL_TEXT = "The document does not contain this information."
+SCENARIO_REFUSAL_TEXT = "The document does not contain a policy for this scenario."
 
+# Gap suggestion template
+_GAP_SUGGESTION = (
+    "Consider adding a dedicated policy section for this topic to improve "
+    "clarity and ensure employees have clear guidance."
+)
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 def _build_context(docs: list[Document]) -> str:
-    """Format retrieved chunks into a page-annotated context string.
-
-    Each chunk is prefixed with its page number so the LLM can reference it.
-    Example output:
-        [Page 3]
-        Employees are entitled to 15 days of annual leave per calendar year...
-
-        [Page 7]
-        Overtime must be pre-approved in writing by the department head...
-    """
+    """Format retrieved chunks into a page-annotated context string."""
     parts = []
     for doc in docs:
         page = doc.metadata.get("page", "?")
@@ -73,39 +103,22 @@ def _build_context(docs: list[Document]) -> str:
 def _smart_excerpt(text: str, max_len: int = 300) -> str:
     """Extract the most informative excerpt from a chunk.
 
-    Skips short leading lines (document titles, section headings, single chars)
-    and returns the first substantial prose paragraph, trimmed to ``max_len``
-    characters.  This avoids showing "Document Title / 1. Introduction / Welcome"
-    when the relevant policy clause is further down in the same chunk.
+    Skips short leading lines (headings, single chars) and returns first
+    substantial prose paragraph trimmed to ``max_len`` characters.
     """
     lines = [l.strip() for l in text.strip().splitlines()]
-
-    # Find the first line with enough content to be prose (not a heading)
     PROSE_MIN_LEN = 35
     start_idx = 0
     for i, line in enumerate(lines):
         if len(line) >= PROSE_MIN_LEN:
             start_idx = i
             break
-
-    # Re-join from the first prose line onward
     excerpt = " ".join(l for l in lines[start_idx:] if l).strip()
     return excerpt[:max_len] if len(excerpt) > max_len else excerpt
 
 
 def _build_sources(docs: list[Document]) -> list[dict]:
-    """Build citation list from retrieved chunk metadata.
-
-    Sources are derived entirely from the vector store metadata — never from
-    LLM output — so they are guaranteed to be real.
-
-    Each source contains:
-        - page    : int   — 1-based page number
-        - excerpt : str   — smart excerpt from chunk (skips headings/titles)
-
-    All top-k retrieved chunks are included as separate citations; deduplicating
-    by page would discard relevant chunks that happen to share a page.
-    """
+    """Build citation list from retrieved chunk metadata (never from LLM output)."""
     sources = []
     seen_chunk_ids: set[str] = set()
     for doc in docs:
@@ -119,46 +132,157 @@ def _build_sources(docs: list[Document]) -> list[dict]:
     return sources
 
 
+def compute_confidence(docs_with_scores: list[tuple[Document, float]]) -> str:
+    """Compute confidence level from retrieval relevance scores.
+
+    Scoring logic:
+      - High   → top score ≥ 0.75  (answer clearly in top chunk)
+      - Medium → top score ≥ 0.50 or answer spread across multiple chunks
+      - Low    → top score < 0.50  (weak match)
+
+    Args:
+        docs_with_scores: list of (Document, relevance_score) from Chroma,
+                          scores in [0, 1] (higher = more relevant).
+    """
+    if not docs_with_scores:
+        return "Low"
+    scores = [score for _, score in docs_with_scores]
+    top_score = max(scores)
+    if top_score >= 0.75:
+        return "High"
+    if top_score >= 0.50:
+        return "Medium"
+    return "Low"
+
+
+# ---------------------------------------------------------------------------
+# Core RAG functions
+# ---------------------------------------------------------------------------
 
 def answer_question(
     question: str,
     collection_name: str = "policy_docs",
     top_k: int = 5,
+    query_label: str = "factual_lookup",
 ) -> dict:
-    """Retrieve relevant chunks and return a grounded answer with citations.
+    """Retrieve relevant chunks and return a fully structured grounded answer.
 
     Returns:
         {
             "answer": "<LLM answer string>",
-            "sources": [
-                {"page": 3, "excerpt": "exact text from retrieved chunk..."},
-                ...
-            ]
+            "confidence": "High | Medium | Low",
+            "sources": [{"page": 3, "excerpt": "..."}],
+            "gap_detected": bool,
+            "suggestion": str | None,
         }
-    If no relevant chunks are found, sources will be [] and the answer will
-    indicate that no documents are uploaded or relevant.
     """
-    docs = search_similar(question, k=top_k, collection_name=collection_name)
+    # For numeric queries, also include table-specific chunks
+    if query_label == "numeric_lookup":
+        table_docs = search_tables(question, k=top_k, collection_name=collection_name)
+        docs_with_scores = search_similar_with_scores(question, k=top_k, collection_name=collection_name)
+        # Merge: prepend table docs with an artificial high score so they rank first
+        all_docs = [d for d, _ in docs_with_scores]
+        table_ids = {d.metadata.get("chunk_id") for d in table_docs}
+        extra = [d for d in table_docs if d.metadata.get("chunk_id") not in
+                 {dd.metadata.get("chunk_id") for dd in all_docs}]
+        docs_with_scores = [(d, 0.9) for d in extra] + docs_with_scores
+    else:
+        docs_with_scores = search_similar_with_scores(question, k=top_k, collection_name=collection_name)
+        all_docs = [d for d, _ in docs_with_scores]
 
-    if not docs:
+    all_docs = [d for d, _ in docs_with_scores]
+
+    if not all_docs:
         return {
             "answer": (
                 "No relevant content was found in the uploaded documents. "
                 "Please upload policy documents first or rephrase your question."
             ),
+            "confidence": "Low",
             "sources": [],
+            "gap_detected": True,
+            "suggestion": "Please upload relevant policy documents before querying.",
         }
 
-    context = _build_context(docs)
+    confidence = compute_confidence(docs_with_scores)
+    context = _build_context(all_docs)
     chain = QA_PROMPT | get_llm() | StrOutputParser()
     answer = chain.invoke({"context": context, "question": question})
 
-    # If LLM returned a refusal, sources list is empty (nothing to cite)
+    # If LLM returned a refusal → gap detected
     if answer.strip().startswith(REFUSAL_TEXT[:40]):
-        return {"answer": REFUSAL_TEXT, "sources": []}
+        return {
+            "answer": REFUSAL_TEXT,
+            "confidence": "Low",
+            "sources": [],
+            "gap_detected": True,
+            "suggestion": _GAP_SUGGESTION,
+        }
+
+    sources = _build_sources(all_docs)
+    return {
+        "answer": answer.strip(),
+        "confidence": confidence,
+        "sources": sources,
+        "gap_detected": False,
+        "suggestion": None,
+    }
+
+
+def analyze_scenario(
+    scenario: str,
+    collection_name: str = "policy_docs",
+    top_k: int = 7,
+) -> dict:
+    """Compliance advisor: retrieve policy chunks and reason over a user scenario.
+
+    Returns:
+        {
+            "scenario": "...",
+            "outcome": "LLM reasoning text",
+            "confidence": "High | Medium | Low",
+            "sources": [{"page": int, "excerpt": str}],
+            "gap_detected": bool,
+            "suggestion": str | None,
+        }
+    """
+    docs_with_scores = search_similar_with_scores(scenario, k=top_k, collection_name=collection_name)
+    docs = [d for d, _ in docs_with_scores]
+
+    if not docs:
+        return {
+            "scenario": scenario,
+            "outcome": "No relevant policy found. Please upload policy documents first.",
+            "confidence": "Low",
+            "sources": [],
+            "gap_detected": True,
+            "suggestion": "Please upload relevant policy documents before analyzing scenarios.",
+        }
+
+    confidence = compute_confidence(docs_with_scores)
+    context = _build_context(docs)
+    chain = COMPLIANCE_PROMPT | get_llm() | StrOutputParser()
+    outcome = chain.invoke({"context": context, "scenario": scenario})
+
+    if outcome.strip().startswith(SCENARIO_REFUSAL_TEXT[:50]):
+        return {
+            "scenario": scenario,
+            "outcome": SCENARIO_REFUSAL_TEXT,
+            "confidence": "Low",
+            "sources": [],
+            "gap_detected": True,
+            "suggestion": _GAP_SUGGESTION,
+        }
 
     sources = _build_sources(docs)
-    return {"answer": answer.strip(), "sources": sources}
+    return {
+        "scenario": scenario,
+        "outcome": outcome.strip(),
+        "confidence": confidence,
+        "sources": sources,
+        "gap_detected": False,
+        "suggestion": None,
+    }
 
 
 def summarize_section(section_text: str) -> str:

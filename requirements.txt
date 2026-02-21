@@ -1,7 +1,16 @@
-# PolicyAssist RAG Backend
+# PolicyAssist RAG Backend - Requirements
+# 
+# NOTE: This file is for convenience. The actual requirements.txt is in backend/
+# Install from backend/requirements.txt: cd backend && pip install -r requirements.txt
+#
+# Or use this file from project root: pip install -r requirements.txt
+
+# Web framework
 fastapi>=0.109.0
 uvicorn[standard]>=0.27.0
 python-multipart>=0.0.6
+
+# Configuration
 python-dotenv>=1.0.0
 pydantic-settings>=2.0.0
 
@@ -17,4 +26,10 @@ chromadb>=0.4.0
 
 # Hugging Face embeddings
 sentence-transformers>=2.3.0
+
+# Table extraction (Feature 4 – Table Intelligence)
+pdfplumber>=0.10.0
+
+# Numeric operations for document diff (Feature 6)
+numpy>=1.26.0
 
