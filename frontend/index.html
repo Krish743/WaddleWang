@@ -43,10 +43,7 @@
                 <span class="nav-icon">≡</span>
                 <span>Sections</span>
             </button>
-            <button class="nav-item" data-tab="compare" id="nav-compare">
-                <span class="nav-icon">⇄</span>
-                <span>Compare Docs</span>
-            </button>
+
         </nav>
 
         <div class="sidebar-footer">
@@ -109,8 +106,6 @@
             </div>
 
             <div id="askResult" class="hidden">
-                <!-- Query type badge + confidence badge -->
-                <div class="badges-row" id="askBadges"></div>
 
                 <!-- Gap alert -->
                 <div class="gap-alert hidden" id="gapAlert">
@@ -182,67 +177,6 @@
         </div>
 
         <!-- ── Compare Tab ─────────────────────────────────── -->
-        <div class="tab-panel" id="tab-compare">
-            <div class="page-header">
-                <h1>Compare Documents</h1>
-                <p>Upload two policy documents to detect semantic differences between them.</p>
-            </div>
-
-            <div class="compare-upload-grid">
-                <!-- Doc A -->
-                <div class="compare-upload-col">
-                    <div class="compare-upload-label">Document A</div>
-                    <div class="upload-zone upload-zone-sm" id="compareZoneA">
-                        <input type="file" id="compareFileA" accept=".pdf,.txt" hidden />
-                        <div class="upload-icon" style="font-size:26px">📄</div>
-                        <p class="upload-title" style="font-size:13px">Drop or <button class="link-btn"
-                                id="browseCmpA">browse</button></p>
-                    </div>
-                    <div class="compare-file-name" id="compareNameA"></div>
-                    <div class="compare-upload-status" id="compareStatusA"></div>
-                </div>
-
-                <!-- VS divider -->
-                <div class="compare-vs">vs</div>
-
-                <!-- Doc B -->
-                <div class="compare-upload-col">
-                    <div class="compare-upload-label">Document B</div>
-                    <div class="upload-zone upload-zone-sm" id="compareZoneB">
-                        <input type="file" id="compareFileB" accept=".pdf,.txt" hidden />
-                        <div class="upload-icon" style="font-size:26px">📄</div>
-                        <p class="upload-title" style="font-size:13px">Drop or <button class="link-btn"
-                                id="browseCmpB">browse</button></p>
-                    </div>
-                    <div class="compare-file-name" id="compareNameB"></div>
-                    <div class="compare-upload-status" id="compareStatusB"></div>
-                </div>
-            </div>
-
-            <button class="btn btn-primary btn-full" id="compareBtn" disabled>
-                <span class="btn-label">Upload &amp; Compare</span>
-                <span class="btn-loader hidden"></span>
-            </button>
-
-            <div id="compareResult" class="hidden">
-                <div class="diff-summary" id="diffSummary"></div>
-                <div class="diff-grid">
-                    <div class="diff-col diff-added">
-                        <h3 class="diff-col-title">➕ Added in B</h3>
-                        <div id="diffAdded"></div>
-                    </div>
-                    <div class="diff-col diff-removed">
-                        <h3 class="diff-col-title">➖ Removed from A</h3>
-                        <div id="diffRemoved"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="empty-state hidden" id="compareEmpty">
-                <div class="empty-icon">⇄</div>
-                <p id="compareEmptyMsg">Upload both documents and click Compare.</p>
-            </div>
-        </div>
 
     </main>
 

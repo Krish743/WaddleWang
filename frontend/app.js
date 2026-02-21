@@ -1,8 +1,8 @@
-// ── PolicyAssist Intelligence System – Frontend ─────────────
+﻿// â”€â”€ PolicyAssist Intelligence System â€“ Frontend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // All API calls go through this single constant.
 const API_BASE = 'http://127.0.0.1:8000';
 
-// ── Utility helpers ───────────────────────────────────────────
+// â”€â”€ Utility helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function apiFetch(path, options = {}) {
     const res = await fetch(`${API_BASE}${path}`, options);
@@ -39,14 +39,6 @@ function showResult(el, html, type = 'info') {
 function hideEl(el) { el.classList.add('hidden'); }
 function showEl(el) { el.classList.remove('hidden'); }
 
-// Confidence badge colour
-function confidenceBadgeClass(conf) {
-    if (!conf) return 'badge-type';
-    const c = conf.toLowerCase();
-    if (c === 'high') return 'badge-high';
-    if (c === 'medium') return 'badge-medium';
-    return 'badge-low';
-}
 
 // Render source cards into a container element
 function renderSources(sources, listEl, wrapEl) {
@@ -60,9 +52,10 @@ function renderSources(sources, listEl, wrapEl) {
     showEl(wrapEl);
 }
 
-// ── Tab navigation ────────────────────────────────────────────
+// â”€â”€ Tab navigation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-const tabs = ['upload', 'ask', 'scenario', 'sections', 'compare'];
+const tabs = ['upload', 'ask', 'scenario', 'sections'];
+
 
 document.querySelectorAll('.nav-item').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -74,7 +67,7 @@ document.querySelectorAll('.nav-item').forEach(btn => {
     });
 });
 
-// ── API health check ──────────────────────────────────────────
+// â”€â”€ API health check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function checkHealth() {
     const dot = document.getElementById('apiStatusDot');
@@ -93,7 +86,7 @@ async function checkHealth() {
 checkHealth();
 setInterval(checkHealth, 30_000);
 
-// ── 1. UPLOAD ─────────────────────────────────────────────────
+// â”€â”€ 1. UPLOAD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const uploadZone = document.getElementById('uploadZone');
 const fileInput = document.getElementById('fileInput');
@@ -103,7 +96,7 @@ const uploadBtn = document.getElementById('uploadBtn');
 const uploadResult = document.getElementById('uploadResult');
 const uploadStats = document.getElementById('uploadStats');
 
-// Click zone or browse button → open file picker
+// Click zone or browse button â†’ open file picker
 uploadZone.addEventListener('click', (e) => {
     if (e.target !== browseBtn) fileInput.click();
 });
@@ -149,29 +142,29 @@ uploadBtn.addEventListener('click', async () => {
         const { ok, data } = await apiFetch('/upload', { method: 'POST', body: formData });
         if (ok) {
             showResult(uploadResult,
-                `✅ <strong>${escHtml(data.filename || file.name)}</strong> uploaded and indexed successfully.`,
+                `âœ… <strong>${escHtml(data.filename || file.name)}</strong> uploaded and indexed successfully.`,
                 'success'
             );
             // Stats chips
-            document.querySelector('#statChunks .stat-val').textContent = data.chunks_ingested ?? '—';
-            document.querySelector('#statTables .stat-val').textContent = data.tables_ingested ?? '—';
-            document.querySelector('#statSections .stat-val').textContent = data.sections_detected ?? '—';
+            document.querySelector('#statChunks .stat-val').textContent = data.chunks_ingested ?? 'â€”';
+            document.querySelector('#statTables .stat-val').textContent = data.tables_ingested ?? 'â€”';
+            document.querySelector('#statSections .stat-val').textContent = data.sections_detected ?? 'â€”';
             showEl(uploadStats);
             // Reset
             fileInput.value = '';
             uploadFilename.textContent = '';
             uploadBtn.disabled = true;
         } else {
-            showResult(uploadResult, `❌ ${escHtml(data.detail || data.error || 'Upload failed')}`, 'error');
+            showResult(uploadResult, `âŒ ${escHtml(data.detail || data.error || 'Upload failed')}`, 'error');
         }
     } catch (err) {
-        showResult(uploadResult, `❌ Network error: ${escHtml(err.message)}`, 'error');
+        showResult(uploadResult, `âŒ Network error: ${escHtml(err.message)}`, 'error');
     } finally {
         setLoading(uploadBtn, false);
     }
 });
 
-// ── 2. ASK ────────────────────────────────────────────────────
+// â”€â”€ 2. ASK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const askBtn = document.getElementById('askBtn');
 const questionInput = document.getElementById('questionInput');
@@ -197,14 +190,6 @@ async function handleAsk() {
             body: JSON.stringify({ question }),
         });
 
-        // Badges
-        const confClass = confidenceBadgeClass(data.confidence);
-        const typeLabel = (data.query_type || 'factual_lookup').replace(/_/g, ' ');
-        askBadges.innerHTML = `
-      <span class="badge badge-type">🔍 ${escHtml(typeLabel)}</span>
-      <span class="badge ${confClass}">◉ ${escHtml(data.confidence || 'Unknown')} confidence</span>
-    `;
-
         // Gap alert
         if (data.gap_detected) {
             gapSuggestion.textContent = data.suggestion || '';
@@ -226,7 +211,6 @@ async function handleAsk() {
         answerBox.textContent = `Network error: ${err.message}`;
         hideEl(gapAlert);
         hideEl(sourcesWrap);
-        askBadges.innerHTML = '';
         showEl(askResult);
     } finally {
         setLoading(askBtn, false);
@@ -238,7 +222,7 @@ questionInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleAsk();
 });
 
-// ── 3. SCENARIO / COMPLIANCE ──────────────────────────────────
+// â”€â”€ 3. SCENARIO / COMPLIANCE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const scenarioBtn = document.getElementById('scenarioBtn');
 const scenarioInput = document.getElementById('scenarioInput');
@@ -266,8 +250,8 @@ async function handleScenario() {
 
         const confClass = confidenceBadgeClass(data.confidence);
         scenarioBadges.innerHTML = `
-      <span class="badge badge-type">⚖ Compliance Analysis</span>
-      <span class="badge ${confClass}">◉ ${escHtml(data.confidence || 'Unknown')} confidence</span>
+      <span class="badge badge-type">âš– Compliance Analysis</span>
+      <span class="badge ${confClass}">â—‰ ${escHtml(data.confidence || 'Unknown')} confidence</span>
     `;
 
         if (data.gap_detected) {
@@ -299,7 +283,7 @@ scenarioInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleScenario();
 });
 
-// ── 4. SECTIONS ───────────────────────────────────────────────
+// â”€â”€ 4. SECTIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const loadSectionsBtn = document.getElementById('loadSectionsBtn');
 const sectionsResult = document.getElementById('sectionsResult');
@@ -343,149 +327,3 @@ loadSectionsBtn.addEventListener('click', async () => {
         setLoading(loadSectionsBtn, false);
     }
 });
-
-// ── 5. COMPARE DOCUMENTS ──────────────────────────────────────
-
-const compareBtn = document.getElementById('compareBtn');
-const compareZoneA = document.getElementById('compareZoneA');
-const compareZoneB = document.getElementById('compareZoneB');
-const compareFileA = document.getElementById('compareFileA');
-const compareFileB = document.getElementById('compareFileB');
-const browseCmpA = document.getElementById('browseCmpA');
-const browseCmpB = document.getElementById('browseCmpB');
-const compareNameA = document.getElementById('compareNameA');
-const compareNameB = document.getElementById('compareNameB');
-const compareStatusA = document.getElementById('compareStatusA');
-const compareStatusB = document.getElementById('compareStatusB');
-const compareResult = document.getElementById('compareResult');
-const compareEmpty = document.getElementById('compareEmpty');
-const compareEmptyMsg = document.getElementById('compareEmptyMsg');
-const diffSummary = document.getElementById('diffSummary');
-const diffAdded = document.getElementById('diffAdded');
-const diffRemoved = document.getElementById('diffRemoved');
-
-// Wire up file pickers + drag-drop for both zones
-function makeCompareZone(zone, input, browseBtn) {
-    zone.addEventListener('click', (e) => { if (e.target !== browseBtn) input.click(); });
-    browseBtn.addEventListener('click', (e) => { e.stopPropagation(); input.click(); });
-    zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('drag-over'); });
-    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-    zone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        zone.classList.remove('drag-over');
-        if (e.dataTransfer.files[0]) {
-            // DataTransfer is read-only – trigger change manually
-            const dt = new DataTransfer();
-            dt.items.add(e.dataTransfer.files[0]);
-            input.files = dt.files;
-            input.dispatchEvent(new Event('change'));
-        }
-    });
-}
-
-makeCompareZone(compareZoneA, compareFileA, browseCmpA);
-makeCompareZone(compareZoneB, compareFileB, browseCmpB);
-
-function refreshCompareBtn() {
-    compareBtn.disabled = !(compareFileA.files[0] && compareFileB.files[0]);
-}
-
-compareFileA.addEventListener('change', () => {
-    compareNameA.textContent = compareFileA.files[0]?.name || '';
-    compareStatusA.textContent = '';
-    compareStatusA.className = 'compare-upload-status';
-    refreshCompareBtn();
-});
-
-compareFileB.addEventListener('change', () => {
-    compareNameB.textContent = compareFileB.files[0]?.name || '';
-    compareStatusB.textContent = '';
-    compareStatusB.className = 'compare-upload-status';
-    refreshCompareBtn();
-});
-
-// Upload a file into an ISOLATED compare collection and return the collection name
-async function uploadCmpFile(file, statusEl) {
-    statusEl.textContent = 'Uploading…';
-    statusEl.className = 'compare-upload-status';
-    // Each compare upload goes to its own Chroma collection
-    const collectionName = 'compare_' + crypto.randomUUID().replace(/-/g, '');
-    const fd = new FormData();
-    fd.append('file', file);
-    try {
-        const { ok, data } = await apiFetch(
-            `/upload?collection_name=${encodeURIComponent(collectionName)}`,
-            { method: 'POST', body: fd }
-        );
-        if (ok) {
-            statusEl.textContent = '✓ Indexed';
-            statusEl.className = 'compare-upload-status ok';
-            return collectionName;   // the isolated Chroma collection name
-        }
-        statusEl.textContent = '✗ ' + (data.detail || 'Upload failed');
-        statusEl.className = 'compare-upload-status err';
-        return null;
-    } catch (err) {
-        statusEl.textContent = '✗ Network error';
-        statusEl.className = 'compare-upload-status err';
-        return null;
-    }
-}
-
-compareBtn.addEventListener('click', async () => {
-    const fileA = compareFileA.files[0];
-    const fileB = compareFileB.files[0];
-    if (!fileA || !fileB) return;
-
-    setLoading(compareBtn, true);
-    hideEl(compareResult);
-    hideEl(compareEmpty);
-
-    try {
-        // Upload both files sequentially so status labels update visibly
-        const collA = await uploadCmpFile(fileA, compareStatusA);
-        if (!collA) { compareEmptyMsg.textContent = 'Failed to upload Document A.'; showEl(compareEmpty); return; }
-
-        const collB = await uploadCmpFile(fileB, compareStatusB);
-        if (!collB) { compareEmptyMsg.textContent = 'Failed to upload Document B.'; showEl(compareEmpty); return; }
-
-        // Run semantic diff via /compare_documents using isolated collections
-        const { ok, data } = await apiFetch('/compare_documents', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ collection_a: collA, collection_b: collB }),
-        });
-
-        if (!ok) {
-            compareEmptyMsg.textContent = data.detail || data.error || 'Comparison failed.';
-            showEl(compareEmpty);
-            return;
-        }
-
-        diffSummary.textContent = data.summary || '';
-
-        diffAdded.innerHTML = (data.added_in_b?.length > 0)
-            ? data.added_in_b.map(c => `
-                <div class="diff-chunk">
-                    <div class="diff-chunk-page">Page ${escHtml(c.page)}</div>
-                    <div>${escHtml(c.excerpt)}</div>
-                </div>`).join('')
-            : '<p class="diff-none">No new content detected.</p>';
-
-        diffRemoved.innerHTML = (data.removed_in_b?.length > 0)
-            ? data.removed_in_b.map(c => `
-                <div class="diff-chunk">
-                    <div class="diff-chunk-page">Page ${escHtml(c.page)}</div>
-                    <div>${escHtml(c.excerpt)}</div>
-                </div>`).join('')
-            : '<p class="diff-none">No removed content detected.</p>';
-
-        showEl(compareResult);
-    } catch (err) {
-        compareEmptyMsg.textContent = `Network error: ${err.message}`;
-        showEl(compareEmpty);
-    } finally {
-        setLoading(compareBtn, false);
-    }
-});
-
