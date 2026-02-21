@@ -248,12 +248,6 @@ async function handleScenario() {
             body: JSON.stringify({ scenario }),
         });
 
-        const confClass = confidenceBadgeClass(data.confidence);
-        scenarioBadges.innerHTML = `
-      <span class="badge badge-type">âš– Compliance Analysis</span>
-      <span class="badge ${confClass}">â—‰ ${escHtml(data.confidence || 'Unknown')} confidence</span>
-    `;
-
         if (data.gap_detected) {
             scenarioGapSuggestion.textContent = data.suggestion || '';
             showEl(scenarioGapAlert);
@@ -271,12 +265,12 @@ async function handleScenario() {
         scenarioOutcome.textContent = `Network error: ${err.message}`;
         hideEl(scenarioGapAlert);
         hideEl(scenarioSourcesWrap);
-        scenarioBadges.innerHTML = '';
         showEl(scenarioResult);
     } finally {
         setLoading(scenarioBtn, false);
     }
 }
+
 
 scenarioBtn.addEventListener('click', handleScenario);
 scenarioInput.addEventListener('keydown', (e) => {
@@ -311,17 +305,17 @@ loadSectionsBtn.addEventListener('click', async () => {
         }
 
         sectionsList.innerHTML = data.map(sec => `
-      <div class="section-card">
-        <div class="section-card-header">
-          <span class="section-card-name">${escHtml(sec.section_name)}</span>
-          <span class="section-page-range">Pages ${escHtml(sec.page_range)}</span>
-        </div>
-        <p class="section-card-summary">${escHtml(sec.summary)}</p>
-      </div>
-    `).join('');
+            <div class="section-card">
+                <div class="section-card-header">
+                    <span class="section-card-name">${escHtml(sec.section_name)}</span>
+                    <span class="section-page-range">${escHtml(sec.page_range)}</span>
+                </div>
+                <p class="section-card-summary">${escHtml(sec.summary)}</p>
+            </div>
+        `).join('');
         showEl(sectionsResult);
     } catch (err) {
-        sectionsEmpty.querySelector('p').textContent = `Network error: ${err.message}`;
+        sectionsEmpty.querySelector('p').textContent = `Network error: ${err.message} `;
         showEl(sectionsEmpty);
     } finally {
         setLoading(loadSectionsBtn, false);

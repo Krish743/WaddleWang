@@ -99,7 +99,8 @@ def detect_sections(docs: list[Document]) -> list[dict]:
             sections.append(sec)
 
     for doc in docs:
-        page = int(doc.metadata.get("page", 1))
+        # PyPDF is 0-indexed; add 1 for human-readable page numbers
+        page = int(doc.metadata.get("page", 0)) + 1
         for raw_line in doc.page_content.splitlines():
             line = raw_line.strip()
             if not line:
@@ -128,8 +129,8 @@ def detect_sections(docs: list[Document]) -> list[dict]:
     # If nothing was detected, return the whole thing as one section
     if not sections:
         full_text = " ".join(d.page_content for d in docs)
-        start = int(docs[0].metadata.get("page", 1)) if docs else 1
-        end   = int(docs[-1].metadata.get("page", 1)) if docs else 1
+        start = int(docs[0].metadata.get("page", 0)) + 1 if docs else 1
+        end   = int(docs[-1].metadata.get("page", 0)) + 1 if docs else 1
         return [{"section_name": "Document Overview", "text": full_text,
                  "start_page": start, "end_page": end}]
 
@@ -164,7 +165,11 @@ def summarize_sections(sections: list[dict], llm) -> list[dict]:
             {
                 "section_name": sec["section_name"],
                 "summary": summary.strip(),
-                "page_range": f"{sec['start_page']}-{sec['end_page']}",
+                "page_range": (
+                    f"Page {sec['start_page']}"
+                    if sec['start_page'] == sec['end_page']
+                    else f"Pages {sec['start_page']}-{sec['end_page']}"
+                ),
                 "start_page": sec["start_page"],
                 "end_page": sec["end_page"],
             }
