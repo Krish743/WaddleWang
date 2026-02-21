@@ -1,187 +1,180 @@
-# PolicyAssist – Intelligent Policy and FAQ Assistant
+# PolicyAssist – Policy Intelligence System
 
-RAG app for **HTS'26 Gen AI Problem Statement 2**: upload policy/FAQ documents (PDF, TXT), ask questions, and get answers grounded in the uploaded content.
+AI-powered policy assistant for **HTS'26 Gen AI Problem Statement 2**. Upload HR/company policy documents (PDF, TXT), ask grounded questions, run compliance checks, and auto-generate section summaries.
+
+---
 
 ## Features
 
-- **Document upload**: PDF and TXT; parsed, chunked, and embedded.
-- **Question answering**: Semantic retrieval + LLM answers **only from document content** (source-aware).
-- **Summarization**: Section-wise summaries (e.g. leave policy, attendance rules).
-- **Vector search**: ChromaDB; configurable chunk size/overlap.
+| Feature | Description |
+|---|---|
+| 📄 **Document Upload** | PDF and TXT; parsed, chunked, table-extracted, and embedded into ChromaDB |
+| ❓ **Ask a Question** | Semantic retrieval + strict LLM grounding — answers cite exact clauses and page numbers |
+| ⚖️ **Compliance Check** | Describe a workplace scenario; get a policy-grounded compliance verdict with citations |
+| 📑 **Sections** | Auto-detects headings (numbered, ALL CAPS, Title Case) and generates per-section summaries |
+| 🔍 **Gap Detection** | Flags when a question has no answer in the uploaded documents and suggests what policy is missing |
 
-## Project structure
+---
+
+## Project Structure
 
 ```
 HackX/
-├── .gitignore              # Ignores .venv, .env, backend/data, __pycache__, etc.
+├── .env                        # API keys (gitignored – copy from .env.example)
+├── .gitignore
 ├── README.md
+│
 ├── backend/
 │   ├── app/
 │   │   ├── __init__.py
-│   │   ├── main.py         # FastAPI app, /upload, /ask, /summarize
-│   │   ├── config.py       # Settings (env)
-│   │   ├── document.py      # Load PDF/TXT, chunk
-│   │   ├── embeddings.py   # Hugging Face / OpenAI embeddings
-│   │   ├── vector_store.py # ChromaDB
-│   │   ├── llm.py          # LLM client (e.g. Groq)
-│   │   └── rag.py          # QA and summarize chains
-│   ├── data/               # Created at runtime (uploads, chroma) – gitignored
-│   ├── requirements.txt
-│   └── .env.example        # Copy to .env and fill in – .env is gitignored
+│   │   ├── main.py             # FastAPI app – all endpoints
+│   │   ├── config.py           # Settings loaded from .env
+│   │   ├── document.py         # PDF/TXT loading, chunking
+│   │   ├── embeddings.py       # HuggingFace / OpenAI embedding models
+│   │   ├── llm.py              # LLM client (Groq / OpenAI-compatible)
+│   │   ├── rag.py              # Grounded Q&A and compliance chains + gap detection
+│   │   ├── classifier.py       # Query-type classifier (factual, numeric, procedural…)
+│   │   ├── sections.py         # Heading detection & LLM section summarization
+│   │   ├── table_parser.py     # pdfplumber table extraction → indexable chunks
+│   │   ├── diff.py             # Semantic document diff (isolated Chroma collections)
+│   │   └── vector_store.py     # ChromaDB helpers (add, search, score)
+│   ├── data/                   # Runtime data – gitignored
+│   │   ├── chroma/             # ChromaDB persistence
+│   │   ├── uploads/            # Uploaded files
+│   │   └── sections/           # Cached section JSON per file_id
+│   └── requirements.txt
+│
 └── frontend/
-    ├── index.html
-    ├── styles.css
-    ├── app.js
-    └── README.md
+    ├── index.html              # Single-page app shell + tab panels
+    ├── styles.css              # Dark-theme design system
+    └── app.js                  # All API calls, tab navigation, UI logic
 ```
+
+---
 
 ## Quick Start
 
-### Step 1: Clone and navigate
+### 1. Clone and enter backend
 
 ```bash
-cd HackX
-cd backend
+git clone https://github.com/Krish743/WaddleWang.git
+cd WaddleWang/backend
 ```
 
-### Step 2: Create virtual environment
+### 2. Create and activate a virtual environment
 
-**Option A: Create in backend/ (recommended)**
 ```bash
-python -m venv .venv
+python -m venv venv
 ```
 
-**Option B: Create venv elsewhere**
-```bash
-# From backend/, create venv at root level
-python -m venv ../venv
+- **Windows (PowerShell):** `.\venv\Scripts\Activate.ps1`
+- **Windows (cmd):** `.\venv\Scripts\activate.bat`
+- **macOS / Linux:** `source venv/bin/activate`
 
-# Or create in custom location
-python -m venv C:/path/to/my-venv
-```
-
-**Activate venv:**
-
-- **Windows (PowerShell):** `.\\.venv\\Scripts\\Activate.ps1` (or path to your venv)
-- **Windows (cmd):** `.\\.venv\\Scripts\\activate.bat` (or path to your venv)
-- **macOS/Linux:** `source .venv/bin/activate` (or path to your venv)
-
-You should see `(.venv)` or your venv name in your prompt.
-
-**Note:** Venv can be anywhere, but always run commands from `backend/` directory.
-
-### Step 3: Install dependencies
+### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Step 4: Configure environment variables
+### 4. Configure environment variables
 
-Copy the example file and add your API key:
+Create a `.env` file at the project root (or inside `backend/`) and add:
 
-```bash
-copy .env.example .env
-```
-
-Edit `backend/.env` and set:
-
-**For Groq (recommended):**
 ```env
+# LLM – Groq (recommended)
 API_KEY=gsk-your-groq-key-here
 BASE_URL=https://api.groq.com/openai/v1
 LLM_MODEL=llama-3.1-70b-versatile
+
+# Embeddings – HuggingFace (free, runs locally)
 EMBEDDING_PROVIDER=huggingface
 EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
 ```
 
-**For OpenAI:**
-```env
-API_KEY=sk-your-openai-key-here
-LLM_MODEL=gpt-4o-mini
-EMBEDDING_PROVIDER=openai
-EMBEDDING_MODEL=text-embedding-3-small
-EMBEDDING_API_KEY=sk-your-openai-key-here
-```
+> **OpenAI alternative:**
+> ```env
+> API_KEY=sk-your-openai-key-here
+> LLM_MODEL=gpt-4o-mini
+> EMBEDDING_PROVIDER=openai
+> EMBEDDING_MODEL=text-embedding-3-small
+> EMBEDDING_API_KEY=sk-your-openai-key-here
+> ```
 
-### Step 5: Run the backend
-
-Make sure you're in `backend/` with venv activated:
+### 5. Run the backend
 
 ```bash
+cd backend
 uvicorn app.main:app --reload
 ```
 
-You should see:
+Expect:
 ```
 INFO:     Uvicorn running on http://127.0.0.1:8000
 INFO:     Application startup complete.
 ```
 
-### Step 6: Access the app
+### 6. Open the app
 
-- **API Docs:** http://127.0.0.1:8000/docs
-- **Basic UI:** http://127.0.0.1:8000/ui
-- **Health Check:** http://127.0.0.1:8000/health
+Navigate to **http://127.0.0.1:8000** — the backend serves the frontend automatically.
 
-## Backend setup (detailed)
+| URL | Purpose |
+|---|---|
+| http://127.0.0.1:8000 | Full web UI |
+| http://127.0.0.1:8000/docs | Interactive API docs (Swagger) |
+| http://127.0.0.1:8000/health | Health check |
 
-### Virtual environment
+---
 
-The venv is created inside `backend/` and is gitignored (`.venv/` won't be committed).
+## API Reference
 
-### Environment variables
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/upload` | Upload PDF or TXT (`multipart/form-data`). Optional `?collection_name=` for isolated indexing. Returns `file_id`, chunk/table/section counts. |
+| `POST` | `/ask` | `{"question": "..."}` → grounded answer with page citations and gap detection. |
+| `POST` | `/analyze_scenario` | `{"scenario": "..."}` → compliance verdict with citations and gap detection. |
+| `GET`  | `/sections` | Returns auto-detected section summaries from all uploaded documents. |
+| `POST` | `/summarize` | `{"section_text": "..."}` → concise LLM summary. |
+| `GET`  | `/health` | `{"status": "ok"}` |
 
-The backend reads from `backend/.env`. Copy `backend/.env.example` to `backend/.env` and fill in your keys.
+---
 
-**Important:** Never commit `.env` (it's in `.gitignore`). Only commit `.env.example`.
+## How It Works
 
-### Running the API
-
-Always run from `backend/` directory with venv activated:
-
-```bash
-cd backend
-# Activate venv first
-uvicorn app.main:app --reload
+```
+Upload → parse → chunk → embed → ChromaDB
+                                    │
+Ask / Compliance ──────────────────►│ semantic search (top-k chunks)
+                                    │
+                              LLM (strict grounded prompt)
+                                    │
+                         answer + page citations + gap flag
 ```
 
-The `--reload` flag enables auto-reload on code changes (useful for development).
+1. **Upload**: document is split into overlapping chunks; tables extracted separately; section headings detected and summarised by LLM; all stored in `policy_docs` Chroma collection.
+2. **Ask**: query is classified (factual / numeric / procedural / comparative), top-k chunks retrieved with relevance scores, passed to LLM with a strict system prompt that forbids fabrication and preamble phrases.
+3. **Compliance**: same retrieval pipeline, different system prompt focused on policy outcomes and compliance verdicts.
+4. **Sections**: heading detection uses 3 patterns (numbered `1.`, ALL CAPS, Title Case); page numbers are 1-indexed; each section is summarised by LLM and cached to `data/sections/<file_id>.json`.
 
-## Frontend (Basic UI)
+---
 
-The `frontend/` folder is a simple HTML/CSS/JS UI for testing (replace later with any framework).
+## Tech Stack
 
-- Served by the backend at **http://127.0.0.1:8000/ui** when the backend is running.
-- Or open `frontend/index.html` in a browser, or run a local static server from `frontend/`.
+| Layer | Technology |
+|---|---|
+| Web framework | FastAPI + Uvicorn |
+| LLM | Groq (llama-3.1-70b) / any OpenAI-compatible API |
+| Embeddings | HuggingFace `all-MiniLM-L6-v2` (local) or OpenAI |
+| Vector store | ChromaDB (disk-persisted) |
+| Document parsing | LangChain + PyPDF + pdfplumber |
+| Frontend | Vanilla HTML / CSS / JavaScript (dark theme SPA) |
 
-See `frontend/README.md` for details.
+---
 
-## API overview
+## .gitignore Highlights
 
-| Method | Endpoint    | Description |
-|--------|-------------|-------------|
-| POST   | `/upload`   | Upload PDF or TXT; chunks are embedded and stored. |
-| POST   | `/ask`      | Body: `{"question": "..."}` → answer from document context. |
-| POST   | `/summarize`| Body: `{"section_text": "..."}` → concise summary. |
-| GET    | `/health`   | Health check. |
-
-## Workflow
-
-1. User uploads a policy document → backend chunks and embeds it.
-2. Embeddings are stored in ChromaDB.
-3. User asks a question → semantic search retrieves relevant chunks.
-4. Chunks are sent to the LLM with a strict “answer only from context” prompt.
-5. Answer (or “not in document”) is returned.
-
-## Git / .gitignore
-
-The root `.gitignore` excludes:
-
-- Virtual envs: `.venv/`, `venv/`, `backend/.venv/`, etc.
-- Secrets: `.env`
-- Python: `__pycache__/`, `*.pyc`
-- Backend data: `backend/data/`, `data/`
-- IDE/OS: `.idea/`, `.vscode/`, `.DS_Store`
-
-Create `.env` from `backend/.env.example`; do not commit `.env`.
+The following are **not** committed:
+- `venv/`, `.venv/` — virtual environments
+- `.env` — secrets (use `.env.example` as template)
+- `backend/data/` — ChromaDB, uploads, section cache
+- `__pycache__/`, `*.pyc`
